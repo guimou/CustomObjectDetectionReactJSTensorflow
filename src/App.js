@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useEffect } from "react";
 import * as tf from "@tensorflow/tfjs";
 import Webcam from "react-webcam";
 import "./App.css";
@@ -12,12 +12,13 @@ function App() {
   const runCoco = async () => {
     // Load hosted model
     console.log('Loading model')
-    const net = await tf.loadGraphModel('YOUR HOSTED MODEL HERE')
-    console.log("Handpose model loaded.");
+    const net = await tf.loadGraphModel(process.env.PUBLIC_URL + 'assets/model.json')
+    //const net = await tf.loadGraphModel(process.env.PUBLIC_URL + 'custom_model/model.json')
+    console.log("Model loaded.");
     //  Loop and detect hands
     setInterval(() => {
       detect(net);
-    }, 100);
+    }, 2000);
   };
 
   const detect = async (net) => {
@@ -42,27 +43,40 @@ function App() {
 
       // Reshape image data
       const img = tf.browser.fromPixels(video)
-      const resized = tf.image.resizeBilinear(img, [640,480]).cast('int32')
+      const resized = tf.image.resizeBilinear(img, [640,480]).cast('float32')
       
       // Execute prediction
-      const obj = await net.executeAsync(resized.expandDims(0))
+      const obj = await net.executeAsync(resized.expandDims(0),['detection_boxes','detection_class_labels','detection_scores'])
+
       
+      /*
+      const predictions = await net.executeAsync(resized.expandDims(0), ['detection_boxes','detection_class_labels','detection_scores']) 
+      const data = await predictions[0].data() // you can also use arraySync or their equivalents async methods
+      console.log('Predictions: ', data);
+      */
+         
+      const data = await obj[0].data()
+      const data2 = await obj[1].data()
+      const data3 = await obj[2].data()
       // Extract boxes, classes and scores
-      const boxes = await obj[1].array()  
-      const classes = await obj[2].array()
-      const scores = await obj[4].array()
+      const boxes = await obj[0][1].array()  
+      const classes = await obj[0][2].array()
+      const scores = await obj[0][4].array()
+      console.log(classes)
       
       // Cleanup 
       img.dispose()
       resized.dispose()
 
       // Draw mesh
+      /*
       const ctx = canvasRef.current.getContext("2d");
       drawRect(boxes[0], classes[0], scores[0], 0.9, videoWidth, videoHeight, ctx); 
+      */
     }
   };
 
-  useEffect(()=>{runCoco()},[]);
+  useEffect(()=>{runCoco()});
 
   return (
     <div className="App">
